@@ -1,0 +1,13 @@
+\chapter{Lavoro correlato}
+Le strategie di prioritizzazione del caricamento degli asset sono spesso proprietarie della casa produttrice e, di conseguenza, non divulgate al di fuori di esse. 
+È dunque arduo trovare soluzioni pubbliche e l'argomento non è stato trattato nello specifico da studi scientifici.
+Le soluzioni saranno implementate su Unity come richiesto dall'azienda ospitante, 
+% nonostante il motore non divulghi le politiche di ordinamento applicate per il caricamento degli asset;
+nonostante delle sue criticità che verranno esposte successivamente (vedi capitolo \ref{cap:limitazioni&lavorofuturo}).
+
+Il problema di minimizzare il tempo di attesa fornendo all'utente una preview significativa dei dati 3D che stanno venendo caricati è stato affrontato intensamente nel contesto della semplificazione di modelli 3D \cite{schroeder1992decimation, semplificationenvelopes} e in particolare nelle mesh progressive \cite{hoppe1996progressive, hoppe199827} e nella loro compressione~\cite{progmeshstreaming1}.
+La differenza nel contesto di questo elaborato è la granularità: in questo lavoro si sceglie l'ordine di caricamento di interi modelli, mentre nel caso della semplificazione progressiva di una mesh si sceglie quale lato collassare per ottenere una buona mesh approssimante al prossimo passo. Una mesh approssimante viene definita buona secondo dei criteri di distanza dalla mesh originale. Analogamente vedremo come arrivare in tempi utili ad una versione della scena che, per quanto incompleta, comprende tutti gli elementi che compongono la vista finale di una data inquadratura. Si sottolinea che queste politiche non intendono sostituire tecniche come quelle delle mesh progressive, ma vogliono invece porsi ad un livello di astrazione più alto, definendo quali mesh, eventualmente progressive, iniziare a caricare all'interno della scena. La bontà finale di ogni strategia proposta in questo elaborato viene giudicata da un valutatore esterno, basato su immagini. 
+
+La valutazione della similitudine tra immagini è anch'esso un argomento molto trattato in letteratura \cite{corsini2013perceptual} specialmente nell'ambito dell'apprendimento delle macchine \cite{Wang_2014_CVPR, chechik2010large}. Il metodo proposto non sfrutterà queste ultime tecniche di apprendimento ma si limiterà a misurare la differenza percettiva analizzando utilizzando spazi colorimetrici percettivamente quasi omogenei \cite{ciecolorimetry, perceptualsimilarity}.
+\\
+

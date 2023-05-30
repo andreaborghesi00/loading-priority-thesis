@@ -1,0 +1,75 @@
+\documentclass[a4paper, twoside]{thesis}
+
+\usepackage{StreamingPriority}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{blindtext}
+\usepackage{subfiles}
+\usepackage[italian]{babel}
+\usepackage{algorithm2e, setspace}
+
+\graphicspath{{images/}}
+
+\pgfplotsset{compat=1.18}
+\begin{document}
+\title{
+\huge{Caricamento di scene 3D complesse: strategie di prioritizzazione degli asset e loro valutazione quantitativa basata su immagini}
+}
+% Proposte titoli 
+%Valutazione quantitativa basata su immagini di strategie di prioritizzazione 
+% di asset per il caricamento di scene 3D complesse.
+%Image-based quantitative assessment of loading prioritization for assets in complex 3D scenes.
+
+% Strategie di prioritizzazione 
+% di asset per il caricamento di scene 3D complesse,
+% e loro valutazione quantitativa basata su immagini.
+
+
+\author{Andrea Borghesi}
+\matr{952944}
+\logo{images/unimi_logo}
+\university{Università degli Studi di Milano}
+\dept{Dipartimento di Informatica}
+\degr{Corso di Laurea in Informatica}
+\superv{Prof. Marco Tarini}
+\date{Anno Accademico 2021/2022}
+
+\pagestyle{plain}
+\maketitle
+\thispagestyle{empty}
+\cleardoublepage
+\include{sections/Sommario}
+\include{sections/Abstract}
+\pagenumbering{roman}
+
+\newgeometry{bottom=3cm, top=2cm}
+\tableofcontents
+\restoregeometry
+
+\pagestyle{headings}
+    \include{sections/Introduzione}
+    \include{sections/LavoroCorrelato}
+    \include{sections/Strategie}
+    \include{sections/UnoStrumentoPerLAssessment}
+    \include{sections/RisultatiEdEsperimenti}
+    \include{sections/Conclusioni}
+    \include{sections/LimitazioniELavoroFuturo}
+    \include{sections/Glossario}
+    \chapter*{Ringraziamenti}
+        Ringrazio vivamente i miei genitori per avermi permesso di vivere questa esperienza, lasciandomi libero di imparare a camminare con le mie stesse gambe.
+        
+        Un sentito ringraziamento anche alla mia seconda famiglia: Alessandro Barba, Lucrezia, Letizia e al resto della famiglia Zanetti, grazie per avermi supportato e sopportato per tutti questi anni. Ho imparato tanto da voi, ad ascoltare, a mantenere la calma e la razionalità anche nelle discussioni più accese e persino qualche parola in bresciano.
+        
+        Grazie ad Alessandro Clerici e a Edoardo Della Rossa, degli amici e compagni di corso brillanti. Con la nostra comicità e complicità abbiamo vissuto una versione dell'esperienza universitaria unica e indimenticabile, nonostante la distanza e il buio delle nostre stanze. Mi avete insegnato l'importanza dell'impegno, della critica e della puntigliosità. Nonostante facessi fatica a stare al vostro passo, non mi avete mai lasciato indietro nemmeno per un momento.
+
+        Grazie anche al professor Masetti per avermi fatto innamorare di questa disciplina. Probabilmente se non avessi avuto lei come professore, questa tesi sarebbe rimasta nella penna per sempre. 
+
+        Un Grazie speciale a chi mi ha supportato in questo ultimo difficile periodo: 
+
+    \printbibliography[heading=bibintoc]
+
+
+\end{document}

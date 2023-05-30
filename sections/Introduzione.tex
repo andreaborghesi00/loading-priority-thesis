@@ -1,0 +1,13 @@
+\chapter{Introduzione}
+\pagenumbering{arabic}
+    Nel contesto del rendering di scene di grandi dimensioni i limiti imposti dalla memoria sono sempre un ostacolo da affrontare con cautela; raramente è possibile caricare l'interità degli asset, si necessita dunque di caricare sottoinsiemi fondamentali. A fronte di questo problema interviene il ruolo del designer, che è in grado di strutturare il mondo in più scene di dimensioni gestibili e interconnesse tra di loro. Una grande città, per esempio, divisa in zone connesse da sottopassaggi, vicoli stretti o gallerie che fungono da spazio di transizione tra una scena e un'altra.
+    
+    Il problema che si pone è riferito alla transizione tra due di queste sotto-scene (da adesso in poi chiamate solo \textit{scene}). L'operazione di scaricare la scena precedente e caricare la successiva richiede un ammontare di tempo non indifferente. La strategia più utilizzata per diversi anni è stata la semplice transizione ad una schermata di attesa, ma gli standard odierni richiedono che queste vengano rimosse per garantire un maggiore senso di fluidità e di percezione dello spazio.
+    
+    In molte situazioni, specialmente quelle in contesto videoludico, l'utente finale potrebbe non avere una macchina sufficientemente performante per effettuare questa sequenza di scaricamento e caricamento senza che se ne accorga: il tempo impiegato per attraversare lo spazio di transizione non potrebbe bastare e il giocatore potrebbe vedere degli asset ``apparire dal nulla'', rovinando l'esperienza di immersione nell'ambiente.
+
+
+    \section*{Obiettivi} % 1.2
+    Ci si pone l'obiettivo di introdurre politiche di ordinamento degli asset che andranno rispettate durante il caricamento. Queste politiche prioritizzeranno il caricamento delle istanze di asset che compongono la vista finale della scena e le componenti critiche per il corretto funzionamento dell'applicativo, garantendo un migliore margine di tempo per il caricamento della scena anche per le macchine meno performanti senza rovinare l'esperienza percettiva dell'utente finale. 
+    
+    Per misurare l'efficacia di queste strategie si propone uno strumento basato su immagini che, sotto le dovute ipotesi, fornisce una valutazione della qualità dell'ordinamento utilizzato per il caricamento di una scena.

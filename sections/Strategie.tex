@@ -1,0 +1,432 @@
+\chapter{Strategie di prioritizzazione}
+\label{cap:strategie}
+In questo capitolo verranno esposte delle politiche di prioritizzazione delle istanze che compongono una \textbf{scena}, uno spazio tridimensionale composto da oggetti chiamati \textbf{istanze di asset} (o anche solo istanze). Tutte le istanze sono caratterizzate da una trasformazione spaziale che li colloca all'interno dello spazio. Inoltre, a ognuna possono essere associate delle componenti che la definiscono come: generici script, audio, mesh ed eventuali tessiture. 
+Di queste componenti quella che verrà maggiormente considerata nelle strategie esposte nei successivi paragrafi è la mesh. In particolare considereremo mesh 3D complete.
+
+Si sottolinea che le strategie proposte ipotizzano che, soprattutto nel contesto videoludico, sia possibile interagire con la scena prima del caricamento dell'ultimo oggetto della scena. Dunque queste politiche avranno anche il compito di fornire un sottoinsieme di istanze critico per il funzionamento dell'applicativo (vedi Capitolo \ref{cap:strategie:zoneinteresse&assetprioritari}).
+
+È inoltre opportuno delineare perché si sta dedicando tale attenzione a comporre ordinamenti e sottoinsiemi critici. Nella transizione tra due scene, gli asset che comporranno la scena che deve essere caricata risiederanno, nel caso migliore, nella memoria di massa o, per le applicazioni distribuite, in remoto. Prima di renderizzare delle istanze di questi asset è necessario trasferire questi file nella VRAM, uno spostamento di una quantità di dati non trascurabile. Una scena realistica utilizzata per delle valutazioni nei paragrafi successivi (Figura \ref{fig:scenarealistica}), necessita di renderizzare circa 4000 istanze che fanno uso di 900 mesh e 1365 tessiture. In tutto queste occupano \SI{2.2}{\giga\byte}. Il trasferimento di questi dati dalla memoria di massa o da remoto sino alla VRAM è rallentato non solo dalle limitate velocità di trasferimento della memoria di massa o dalla banda a disposizione, ma anche dalla traduzione dei file in un formato adatto al rendering. Questo può richiedere di effettuare ulteriori elaborazioni "on load" dei modelli, oltre che necessitare il passaggio dei dati nel bus tra la memoria centrale e la GPU, anch'esso soggetto ad altri limiti di banda. Queste elaborazioni "on load" includono: compressione e/o decompressione delle tessiture in un formato adatto alla GPU; creazione di livelli di MIP map; calcolo delle direzioni tangenti per vertici; e altro.
+
+Questo sottolinea come il caricamento della scena raramente è un processo immediato. Identificare quali istanze compongono un sottoinsieme utilizzabile della scena è importante per rendere questo processo poco percettibile.
+\\
+
+Un progetto Unity contenente uno strumento che simula le politiche descritte è disponibile all'indirizzo \url{https://github.com/andreaborghesi00/asset-loading-priority}.
+
+\section{Struttura di una strategia e ipotesi}
+Le strategie proposte hanno la seguente struttura: 
+\begin{itemize}[label={}]
+\item \verb|IN:| Istanze componenti la scena, entry point
+\item \verb|OUT:| Insieme di coppie $\langle$\verb|istanza, priorità|$\rangle$
+\end{itemize}
+L'input coincide con tutte le istanze presenti sulla scena e un \textit{entry point}, un'istanza priva di mesh che rappresenta i l punto di entrata della scena; l'output è un insieme di coppie che rappresenta il valore di importanza associato ad ogni istanza. La computazione dell'output è effettuata offline, in gergo \textit{baked}.
+
+Ogni strategia avrà il compito principale di assegnare un valore di importanza ad ogni asset. Successivamente queste valutazioni potranno essere utilizzate a runtime, ma prima di utilizzarle dovranno essere riordinate in ordine crescente rispetto al valore di priorità. Nelle simulazioni effettuate è stato utilizzato Heapsort \cite{williams:64:algorithm} con complessità temporale pari a $O(n\log(n))$.
+\\
+
+\paragraph{Note implementative} Su Unity anche asset che non presentano una mesh hanno una posizione di conseguenza anche essi vengono considerati nella valutazione. Inoltre quelli che sono recipienti di routine critiche per l'applicativo necessitano un valore di priorità calcolato differentemente dal resto degli asset, vedi Capitolo  
+\ref{cap:strategie:zoneinteresse&assetprioritari}.
+
+% \textit{Specificare la motivazioni (cioè il rationale), cioè 
+% cosa ci ha spinto a pensare che sia una strategia ragionevole.}
+\section{Closest-First}
+\label{cap:closest-first}
+    \paragraph{Rationale}
+        Gli oggetti inquadrati vicini alla \textit{camera} saranno quelli che occuperanno una sezione importante della vista; analogamente quelli più distanti avranno maggiori possibilità di venire occlusi.
+        In aggiunta, nel contesto videoludico è intuitivo dare priorità a istanze di asset vicine al giocatore con la quale potrebbe interagire a breve, afferendo all'asset non solo un valore che rappresenta la distanza ma anche una stima della sua importanza semantica, per quanto grossolana.\\
+
+    Per misurare la distanza tra due asset si utilizza la distanza euclidea tra le origini dei due asset nello spazio mondo, ovvero l'origine dello spazio locale della mesh dell'asset trasposto nello spazio mondo.
+    Il valore di priorità coincide dunque con la distanza tra l'origine dell'istanza dell'asset dall'entry point considerato.
+
+    Per quanto questa strategia sia semplice, presenta delle performance molto consistenti in presenza di fonti di luce che generano ombre portate. Si è osservato che questo avviene indipendentemente dall'angolo di provenienza della luce, probabilmente grazie al suo comportamento molto conservativo. 
+    
+    % specifica il concetto di conservativo utilizzato: utilizza pochissime informazioni dell'asset. es solo la posizione
+    
+
+    \begin{algorithm}
+        \caption{Closest first}
+        \setstretch{1.2}
+        \label{alg:closest-first}
+        \DontPrintSemicolon
+        \SetAlgoLined
+
+        \SetKwData{ev}{evaluated}
+        \SetKwData{ep}{entryPoint}
+        \SetKwData{a}{assets}
+        \SetKwData{s}{sorted}
+        
+        \SetKwProg{Func}{ClosestFirst}{(\a, \ep)}{end}
+            \Func{}{
+                $\ev \gets $Distance$(\a, \ep)$\;
+                \Return{$\ev$}\;
+            }
+    \end{algorithm}
+
+    \begin{algorithm}
+        \caption{Distance}
+        \setstretch{1.2}
+        \label{alg:distance}
+        \DontPrintSemicolon
+        \SetAlgoLined
+
+        \SetKwData{aa}{assets}
+        \SetKwData{a}{asset}
+        \SetKwData{r}{result}
+        \SetKwData{ep}{entryPoint}
+        \SetKwData{d}{dist}
+        \SetKwProg{Func}{Distance}{(\aa, \ep)}{end}
+            \Func{}{
+                $\r \gets \{\}$\;
+                \ForAll{$\a$ \textup{in} $\aa$}{
+                    $\d \gets \sqrt{(a.x - \ep.x)^2 + (\a.y - \ep.y)^2 + (\a.z - \ep.z)^2}$\;
+                    $\r \gets \r \cup \langle \a, \d \rangle$\;
+                }
+                \Return{$\r$}\;
+            }
+    \end{algorithm}
+
+% descrivi la func Distance
+
+\section{Closest-First on Camera}
+\label{cap:closest-first-on-camera}
+    \paragraph {Rationale}
+    Una scelta naturale è quella di prioritizzare ciò che è inquadrato dalla camera, ovvero tutti quegli asset che intersecano il \emph{view frustum} corrente.\\
+    
+    Prima di effettuare ogni valutazione si partiziona l'insieme universo delle istanze degli asset $U$ in due sottoinsiemi $A$ e $B$, dove $A$ è l'insieme di tutti gli asset che intersecano il view frustum e $B$ il suo complementare.
+    
+    La valutazione degli asset in $A$ viene calcolata con la distanza euclidea come visto nella politica descritta al paragrafo precedente. La valutazione degli asset in $B$ coincide invece con la somma tra la distanza euclidea e alla massima valutazione effettuata nell'insieme $A$. A livello implementativo, per considerare questa costante viene aggiunto un parametro \emph{offset} alla funzione di calcolo della distanza. Questa maggiorazione consente di riordinare la lista degli asset e ottenere una lista i cui primi $|A|$ elementi coincidono con gli asset dell'insieme $A$ e i successivi $|B|$ elementi con coincidono con gli asset dell'insieme $B$. 
+    
+    
+    \begin{algorithm}[htb!]
+        \caption{Closest first on Camera}
+        \label{alg:closest-first-on-camera}
+        \DontPrintSemicolon
+        \SetAlgoLined
+        \setstretch{1.2}
+        \SetKwData{aa}{assets}
+        \SetKwData{a}{asset}
+        \SetKwData{ac}{onFrame}
+        \SetKwData{ep}{entryPoint}
+        \SetKwData{ec}{onCamera}
+        \SetKwData{er}{offCamera}
+        \SetKwData{of}{offset}
+
+        
+        \SetKwProg{Func}{ClosestFirstOnCamera}{(\aa, \ep)}{end}
+        \Func{}{
+            $A \gets \{\:\}$\;
+
+            \ForAll(){$\a$ \textup{in} $\aa$}{
+                % \If(){$\f.$Intersects(\a.bounds)}{
+                \If(){\textup{asset intersects view frustum}}{
+                    $A \gets A \cup \{ \a \}$\;
+                }
+            }
+            $A \gets $Distance$(A, \ep)$\;
+            $\of \gets \max(A$.value$)$\;
+            $B \gets $DistanceOffset$((\aa \setminus A), \ep, \of)$\;
+            \Return{$A \cup B$}\;
+        }
+    \end{algorithm}
+
+        \begin{algorithm}
+        \caption{DistanceOffset}
+        \setstretch{1.2}
+        \label{alg:distance-offset}
+        \DontPrintSemicolon
+        \SetAlgoLined
+
+        \SetKwData{aa}{assets}
+        \SetKwData{a}{asset}
+        \SetKwData{r}{result}
+        \SetKwData{ep}{entryPoint}
+        \SetKwData{d}{dist}
+        \SetKwData{of}{offset}
+        \SetKwProg{Func}{DistanceOffset}{(\aa, \ep, \of)}{end}
+            \Func{}{
+                $\r \gets \{\}$\;
+                \ForAll{$\a$ \textup{in} $\aa$}{
+                    $\d \gets ||a\texttt{.position}-\ep\texttt{.position}||_2$\;
+                    %\sqrt{(a.x - \ep.x)^2 + (\a.y - \ep.y)^2 + (\a.z - \ep.z)^2}$\;
+                    $\r \gets \r \cup \langle \a, \d + \of \rangle$\;
+                }
+                \Return{$\r$}\;
+            }
+    \end{algorithm}
+% rinomina Distance con 3 parametri 
+\newpage
+
+
+\section{Sphere Tracing}
+Le prossime politiche sfrutteranno dei note strategie di rendering: \emph{Ray Tracing} e \emph{Ray Marching}. In verità queste non denotano dei precisi algoritmi, bensì delle classi di tecniche di rendering che condividono delle similarità fondamentali.
+
+\subsection{Nozioni preliminari}
+\subsubsection{Ray Tracing}
+Il Ray Tracing è una tecnica di rendering che modella il comportamento della luce. Il concetto di \textit{vista} nel contesto sensoriale è modellato da \emph{raggi}, delle semirette che partono da un punto detto origine (per esempio dal centro di un pixel o dalla camera) che potenzialmente intersecano oggetti nello spazio.
+Da un punto di vista algoritmico, si lancia un raggio passante per ogni pixel, con origine il centro della camera, con l'obiettivo di trovare l'oggetto intersecante più vicino. Successivamente si estraggono le informazioni della faccia della mesh colpita e altre informazioni legate all'intera mesh, necessarie per determinare il colore da assegnare al pixel (frammento) in questione. 
+Si cerca il primo oggetto intersecante dato che, con l'ipotesi che gli oggetti considerati siano completamente opachi, l'oggetto più vicino occluderà la vista degli oggetti più distanti. È opportuno sottolineare che, dato che l'origine è fissata nel centro della camera, i raggi passanti per ogni pixel hanno una direzione diversa, questo implica che, se la distanza focale è finita, la proiezione è in prospettiva.
+
+Si definisce formalmente un raggio in 3 dimensioni come la funzione
+\begin{align*}
+    r: \mathbb{R}_+ \to \mathbb{R}^3 \\
+    r(t) = r_0 + tr_d
+\end{align*}
+dove $r_0$ è il punto di partenza, $r_d$ è la direzione, e l'argomento $t$ è la distanza che si vuole percorrere lungo il raggio. Se $r_0$ è il centro della camera e $p$ la generica posizione del centro di un pixel, allora la direzione del raggio per il pixel considerato è $r_d = \frac{r_0-p}{||r_0-p||}$.
+
+Non resta che ottenere le intersezioni dei raggi con gli oggetti. Sia $f$ la funzione che descrive una superficie implicita \cite{bloomenthal1997introduction:implicitsurfaces}: si vuole risolvere analiticamente $F = f \circ r$ tale che $F(t) = 0$. Questa soluzione non è sempre ottenibile in tempi utili (vedi il toroide). Alcune implementazioni sfruttano il metodo di Newton, nel quale viene analizzato lo sviluppo di Taylor fino al secondo ordine della funzione per trovare iterativamente una migliore approssimazione delle radici. Questo metodo però non converge sempre e, nel caso considerato, potrebbe persino convergere in punti non utili (convergenza ad un punto diverso dal più vicino). Un ulteriore requisito di questo metodo è che la funzione sia derivabile, proprietà che non è posseduta da alcun poliedro.
+
+\paragraph{Ombre portate}
+I raggi sono soggetti alle leggi note dell'ottica geometrica. Si ipotizza di viaggiare nello stesso mezzo trasmissivo in ogni momento, e dunque, per la natura geometrica del raggio, esso rispetterà il principio di Fermat. Analogamente, la legge di Snell per la rifrazione non verrà applicata dato che si considerano solo oggetti completamente opachi. Resta da considerare la legge della riflessione: dato un raggio incidente su una superficie con angolo $\theta_{in}$, il raggio riflesso, passante per il punto di intersezione, avrà un angolo $\theta_{out} = -\theta_{in}$ rispetto alla superficie. % nemmeno questa viene totalmente rispettata, perché al primo impatto si cerca direttamente la fonte di luce
+
+Il colore di un pixel non è sempre definito solo dall'oggetto che interseca ma quasi sempre anche dall'ambiente circostante. Nel mondo reale la luce è rifratta e rimbalza molteplici volte, alterando il colore e la luminanza proveniente da una superficie. È possibile simulare questi stimoli fisici, ma per limiti computazionali queste simulazioni a volte risultano grossolane approssimazioni della realtà. 
+
+\subsubsection{Ray Marching}
+Il Ray Marching è una classe di metodi di rendering per superfici implicite (o parametriche). L'idea alla base di queste strategie è quella di attraversare iterativamente un raggio, avvicinandosi ad ogni passo al punto di intersezione. 
+Al posto di avvalersi delle derivate come nel metodo di Newton, si utilizzano delle funzioni dette \emph{Signed-Distance Function} (SDF) che approssimano la distanza dall'oggetto per assicurarsi di non superare la superficie. Queste funzioni descrivono delle superfici dette \emph{Distance Surfaces} \cite{bloomenthal1991convolution}.
+Se la lunghezza del passo lungo il raggio è fissata, questo metodo generale risulterebbe troppo oneroso da eseguire per ogni raggio. È invece più opportuno, dato un punto sul raggio $\mathbf{x}$, scegliere una lunghezza che coincide con il valore della SDF calcolata in $\mathbf{x}$, supponendo che questa non sovrastimi mai la distanza dalla \textit{Distance Surface}. Questa tecnica è detta Sphere Tracing o Sphere Marching \cite{hart1996sphere}.
+\paragraph{Signed-Distance Function (SDF)}Sia $f: \R^3 \to \R$ una funzione che descrive una superficie implicita (es. una sfera) e $A$ l'insieme dei punti interni e in superficie definito come
+$$A=(\mathbf{x} : f(\mathbf{x}) \leq 0)$$
+allora una \textit{Distance Surface} è una iso-superficie di una funzione $d: 2^{\R^3} \times \R^3 \to \R$ $$d(A, \mathbf{x}) = \min_{y\in A}||\mathbf{x} - \mathbf{y}||_2$$
+dove $d$ è anche detta \emph{point-to-set distance} e definisce implicitamente $A$ dall'esterno.%@@@@@@@@@@@@@@@@@@
+Se esiste una funzione $g: \mathbb{R}^3 \to \mathbb{R}$ tale che
+$$g(\mathbf{x}) \leq d(f^{-1}(0), \mathbf{x})$$
+
+allora $g$ è detta \emph{Signed-Distance Function}. Ottenere questa funzione non è sempre triviale, ma lo è per alcune superfici primitive come piani, sfere, ellissoidi, coni, tori e cubi.
+
+Un generico algoritmo di Sphere Tracing, considerando un singolo raggio, è descritto dall'Algoritmo \ref{alg:sphere-tracing} dove $t$ è la distanza percorsa sul raggio e $d$ è la lunghezza del passo ad ogni iterazione.
+L'algoritmo termina quando la distanza complessiva percorsa supera una costante arbitrariamente grande $D$ oppure quando la distanza dalla superficie è minore di una costante $\epsilon$ arbitrariamente piccola.
+
+\begin{algorithm}
+    \caption{Sphere Tracing}
+    \label{alg:sphere-tracing}
+    \setstretch{1.2}
+    \DontPrintSemicolon
+    \SetAlgoLined
+    
+    \While{$t < D$}{
+        $d \gets f(r(t))$\;
+        \If{$d < \epsilon$}{
+            \Return{$t$}\;
+        }
+        $t \gets t + d$\;
+    }
+    \Return{$\emptyset$}\;
+\end{algorithm}
+
+A livello implementativo i parametri $D$ ed $\epsilon$ influiscono significativamente sulle performance dell'algoritmo. Una scelta troppo grande di $D$ potrebbe far effettuare lunghi passi a vuoto sprecando tempo, e una scelta troppo grande di $\epsilon$ potrebbe restituire una risposta troppo grossolana. È intuitivo pensare che, dato che queste politiche verranno eseguite offline, sia opportuno utilizzare un $\epsilon$ molto piccolo, un $D$ molto grande e lanciare un raggio per ogni pixel per ottenere la massima precisione. 
+Questo approccio è opportuno in fase di produzione contrariamente, durante il testing, può essere più conveniente eseguire prove più grossolane ma veloci da computare.
+ 
+\subsection{Valutazione della distanza}
+\label{cap:sphere-distanza}
+\paragraph{Rationale} 
+Non tutti le istanze di asset intersecanti il \textit{view frustum} verranno renderizzate nella vista. Alcune di queste possono occluderne altre, anche solo parzialmente. Ci si pone l'obiettivo di prioritizzare quelle istanze che non sono completamente occluse, le metodologie descritte nel capitolo precedente permettono di identificarle.
+
+Identificato il sottoinsieme di istanze che compone la vista, si procede a valutare i singoli elementi per distanza dall'entry point, come svolto nelle politiche descritte nei paragrafi \ref{cap:closest-first} e \ref{cap:closest-first-on-camera}.
+\\
+
+Dato l'insieme $A$ contenente tutte le istanze intersecanti il \textit{view frustum}, $D$ ed $E$ sono una partizione di $A$ contenente tutte le istanze che comporranno la vista e le istanze totalmente occluse rispettivamente.
+
+Gli elementi di $D$ sono ottenuti applicando la tecnica di Sphere Tracing vista nel paragrafo precedente. Per semplicità e limiti implementativi, negli esperimenti effettuati si considerano le AABB (\textit{Axis Aligned Bounding Box}) di ogni asset e non con l'effettiva geometria complessa di ognuno per rilevare la loro presenza nella vista. Questo implica la presenza di falsi positivi nell'insieme $E$, nonostante ciò, valutando le performance di questa strategia, tale partizionamento si è rilevato una buona approssimazione.
+% dovrei ripetere che le istanze in $D$ sono valutate per distanza? mi sembra di essere ripetitivo ma è anche la cruciale differenza tra questa politica e la prossima
+
+\begin{algorithm}
+    \caption{Sphere Tracing: Distance priority}
+    \label{alg:sphere-tracing-distance-priority}
+    \DontPrintSemicolon
+    \SetAlgoLined
+    \setstretch{1.2}
+
+    \SetKwData{occ}{D}
+    \SetKwData{oe}{E}
+    \SetKwData{aa}{assets}
+    \SetKwData{ep}{entryPoint}
+    \SetKwData{oc}{offCamera}
+    \SetKwData{o}{offset}
+    \SetKwData{of}{A}
+    \SetKwData{a}{asset}
+    
+    \SetKwProg{Func}{SphereTracingDistancePriority}{(\aa, \ep)}{end}
+    \Func{}{
+
+        $\occ \gets \{\}$\;
+        $\of \gets \{\}$\;
+        \ForAll(){$\a$ \textup{in} $\aa$}{
+            \If(){\textup{asset intersects view frustum}}{
+                $\of \gets \of \cup \{ \a \}$\;
+            }
+        }
+        
+        \ForAll(){\textup{p in pixels}}{
+            hit $\gets$ SphereTracing($p$)\;
+            \If{\textup{hit is not null}}{
+                $\occ \gets \occ\; \cup \;$hit\;
+            }
+        }
+        $\occ \gets $Distance$(\occ, \ep)$\;
+        $\o \gets \max(\occ$.value$)$\;
+        $\oe \gets \of \setminus \occ$\;
+        $\oe \gets $DistanceOffset$(\oe, \ep, \o)$\;
+        $\o \gets \max(\oe$.value$)$\;
+        $\oc \gets \aa \setminus \of$\;
+        $\oc \gets $DistanceOffset$(\oc, \ep, \o)$\;
+        
+        \Return{$\occ \; \cup \; \oe \; \cup \; \oc$}\;
+    }
+\end{algorithm}
+\newpage
+\subsection{Valutazione della dimensione}
+\label{cap:sphere-dimensione} % quante parole per niente
+\paragraph{Rationale} 
+La politica descritta al paragrafo precedente assegna un valore di importanza agli asset che compongono la vista pari alla loro distanza dall'entry point. In questo contesto la distanza si sta ponendo come approssimazione molto grossolana della dimensione di un asset nella vista. Si propone una variazione nella quale si tiene traccia della \textit{quantità} di raggi colpiscono un oggetto. Lanciando un raggio per pixel, la bontà dell'approssimazione della dimensione è pari alla bontà della AABB rispetto alla mesh considerata.
+\\
+% Si vuole fornire una variante della politica precedente, nella quale si considera un caso particolare ma molto frequente: si hanno molteplici oggetti piccoli non occlusi vicini alla camera e un asset sfondo distante, occluso in piccola parte dagli oggetti vicini alla camera, si suppone inoltre che l'impatto percettivo creato dalla mancanza dello sfondo è maggiore di quello che verrebbe provocato dalla mancanza di tutti gli asset vicini. Un caso realistico corrisponderebbe al rendering di una stanza o di uno spazio aperto dove l'orizzonte è modellato da pochi grandi asset. 
+% Se valutassimo gli asset per distanza, lo sfondo riceverebbe una priorità inferiore malgrado la sua presenza sia critica da un punto di vista percettivo, per porre rimedio si decide di valutare gli asset per dimensione, e per fornirne un'approssimazione si decide di utilizzare nuovamente lo Sphere Tracing e si considera un oggetto come "grande" quanto il numero di raggi che lo colpiscono.
+
+
+Come già enunciato, questa è una variante della strategia precedente, con l'unica differenza nella funzione di valutazione utilizzata per l'insieme degli asset di $D$. Ogni volta che un raggio interseca un asset viene aggiunta una tupla $\langle \text{asset}, -1\rangle$ all'insieme degli occlusori oppure, se già esistente, viene aggiornata la tupla corrispondente all'asset decrementando il valore di importanza associato. È opportuno evidenziare che, come per la valutazione per la distanza, l'implementazione delle fornita approssima gli asset alle loro AABB, ma è comunque possibile fornire delle approssimazioni migliori persino esatte se disponibili con le rispettive SDF.
+
+I restanti asset vengono come descritto nella politica precedente.
+
+\begin{algorithm}
+    \caption{Sphere Tracing: Size Priority}
+    \label{alg:sphere-tracing-size-priority}
+    \DontPrintSemicolon
+    \SetAlgoLined
+    \setstretch{1.2}
+
+    \SetKwData{occ}{D}
+    \SetKwData{oe}{E}
+    \SetKwData{aa}{assets}
+    \SetKwData{ep}{entryPoint}
+    \SetKwData{oc}{offCamera}
+    \SetKwData{o}{offset}
+    \SetKwData{of}{A}
+    \SetKwData{a}{asset}
+    \SetKwData{h}{hit}
+    \SetKwProg{Func}{SphereTracingSizePriority}{(\aa, \ep)}{end}
+    \Func{}{
+
+        $\occ \gets \{\}$\;
+        $\of \gets \{\}$\;
+        \ForAll(){$\a$ \textup{in} $\aa$}{
+            \If(){\textup{asset intersects view frustum}}{
+                $\of \gets \of \cup \{ \a \}$\;
+            }
+        }
+        
+        \ForAll(){\textup{p in pixels}}{
+            $\h\gets$ SphereTracing($p$)\;
+            \If{\textup{hit is not null}}{
+                \If{$\exists n\in\mathbb{Z}_- : \langle \h, n\rangle \in \occ$}{
+                    $\occ \gets (\occ\; \setminus \langle \h, n\rangle) \cup \langle \h, n-1\rangle $\;
+                }\Else{
+                    $\occ \gets \occ \;\cup\; \langle \h, -1\rangle$\;
+                }
+            }
+        }
+        $\oe \gets \of \setminus \occ$\;
+        $\oe \gets $Distance$(\oe, \ep)$\;
+        $\o \gets \max(\oe$.value$)$\;
+        $\oc \gets \aa \setminus \of$\;
+        $\oc \gets $DistanceOffset$(\occ, \ep, \o)$\;
+        
+        \Return{$\occ \; \cup \; \oe \; \cup \; \oc$}\;
+    }
+\end{algorithm}
+
+\newpage
+\section{Ray Tracing - Ombre portate}
+\label{cap:ombreportate}
+\paragraph{Rationale} Le istanze sono contenute in AABB, una struttura approssimante molto semplice di cui sono note le soluzioni analitiche per calcolare le intersezioni. È possibile dunque abbandonare le approssimazioni fornite dallo Sphere Tracing e utilizzare il Ray Tracing per trovare le intersezioni esatte.
+Il risultato del rendering non è influenzato soltanto dalle istanze presenti nel view frustum, ma anche da quelle che ne influenzano l'illuminazione. Una fonte luminosa non inquadrata, per esempio, potrebbe generare delle ombre portate o dei riflessi che verranno poi rappresentati nella vista finale.
+Questa strategia vuole concentrarsi sulle ombre portate, e di come queste possano causare causare una forte differenza percettiva, sebbene in maniera indiretta, anche da asset non inquadrati. Uno scenario tipico di questa occorrenza è quello delle stanze chiuse, che presentano soffitti e pareti; nonostante una parete non possa essere in vista, l'ombra che genera sugli asset in vista è di grande impatto percettivo. Si vuole dunque tenere conto degli asset generatori di ombre portate nella vista.
+\paragraph{Ipotesi} Nell'implementazione fornita si assume, per semplicità, la presenza di una singola fonte luminosa nella scena, tuttavia, il metodo è estendibile a molteplici fonti.
+\\
+
+La struttura è analoga all'ultima strategia, nella quale però si sfrutta il Ray Tracing per ottenere delle soluzioni analitiche per le intersezioni.
+
+Si lancia un raggio per ogni pixel e, se questo interseca un'istanza $x$ (la sua AABB), o viene aggiunta la coppia $\langle x, -1 \rangle$ all'insieme $D$ oppure viene aggiornata la coppia relativa all'istanza decrementando il contatore associato.
+Successivamente, dato il punto $p$ di collisione con $x$, si lancia un secondo raggio dal punto $p$ in direzione della fonte luminosa. Se il secondo raggio interseca un'istanza $y$, allora questo sta proiettando un'ombra su $x$.
+Si aggiunge la coppia $\langle y, -1 \rangle$ a $D$, o analogamente, se esiste già una coppia relativa all'istanza $y$, questa viene aggiornata, decrementando il valore associato di $\alpha$. Quest'ultimo parametro $\alpha$ consente di alterare il peso afferito alle istanze proiettori di ombre portate rispetto alle istanze in vista. Negli esperimenti effettuati si è concluso empiricamente che il valore portatore dei migliori risultati è $\alpha = 1$. Si osserva che l'utilizzo di $\alpha = 0$ comporta che le istanze non in vista che generano ombre portate, vengono comunque aggiunte in $D$ ma vengono considerate con priorità minima.
+
+Si decide di inserire le istanze che proiettano ombra in $D$ per due principali motivi
+\begin{itemize}
+    \item l'effetto percettivo che provoca un'ombra è paragonabile a quello causato da un'istanza in vista
+    \item  un'istanza potrebbe essere sia proiettore di un'ombra visibile che in vista. È dunque opportuno cumulare l'importanza di queste due caratteristiche 
+\end{itemize}
+
+% si può spostare
+Per l'implementazione di questa politica si è fatto uso della libreria di Unity \emph{Physics} \cite{raycastingunitydoc}, che ha ridotto drasticamente i tempi di calcolo dato che queste operazioni avvengono sulla GPU.
+
+\begin{algorithm}
+    \caption{CastShadows}
+    \label{alg:cast-shadows}
+    \DontPrintSemicolon
+    \SetAlgoLined
+    \setstretch{1.2}
+
+    \SetKwData{occ}{D}
+    \SetKwData{oe}{E}
+    \SetKwData{aa}{assets}
+    \SetKwData{ep}{entryPoint}
+    \SetKwData{oc}{offCamera}
+    \SetKwData{o}{offset}
+    \SetKwData{of}{A}
+    \SetKwData{a}{asset}
+    \SetKwData{h}{hit}
+    \SetKwData{hs}{hitShadow}
+    \SetKwData{ls}{lightSource}
+    
+    \SetKwProg{Func}{CastShadows}{($\aa, \ep, \alpha, \ls$)}{end}
+    \Func{}{
+
+        $\occ \gets \{\}$\;
+        $\of \gets \{\}$\;
+        \ForAll(){$\a$ \textup{in} $\aa$}{
+            \If(){\textup{asset intersects view frustum}}{
+                $\of \gets \of \cup \{ \a \}$\;
+            }
+        }
+        
+        \ForAll(){\textup{p in pixels}}{
+            $\h\gets$ RayCast(\textup{origin: }$p$, \textup{direction: }$p - \ep$)\;
+            \If{\textup{hit is not null}}{
+                \If{$\exists n\in\mathbb{Z}_- : \langle \h, n\rangle \in \occ$}{
+                    $\occ \gets (\occ\; \setminus \langle \h, n\rangle) \cup \langle \h, n-1\rangle $\;
+                    
+                }\Else{
+                    $\occ \gets \occ \;\cup\; \langle \h, -1\rangle$\;
+                }
+                $\hs \gets$ RayCast(origin: $\h$.position, direction: $\ls-\h$.position\;   
+                \If{$\exists m\in\mathbb{Z}_- : \langle \hs, m\rangle \in \occ$}{
+                    $\occ \gets (\occ\; \setminus \langle \hs, m\rangle) \cup \langle \hs, m-\alpha\rangle $\;
+                }\Else{
+                    $\occ \gets \occ \;\cup\; \langle \hs, -\alpha\rangle$\;
+                }
+            }
+        }
+        $\oe \gets \of \setminus \occ$\;
+        $\oe \gets $Distance$(\oe, \ep)$\;
+        $\o \gets \max(\oe$.value$)$\;
+        $\oc \gets \aa - \of$\;
+        $\oc \gets $DistanceOffset$(\occ, \ep, \o)$\;
+        
+        \Return{$\occ \; \cup \; \oe \; \cup \; \oc$}\;
+    }
+\end{algorithm}
+\newpage
+\section{Asset prioritari}
+\label{cap:strategie:zoneinteresse&assetprioritari}
+La maggioranza delle strategie viste in questo capitolo si concentrano sulla gestione delle istanze nel view frustum, e associando un valore di importanza pari alla distanza dall'entry point per gli asset non in vista. Queste scelte sono dovute all'ignoranza di ulteriori informazioni se non lo stato della scena al momento dell'entrata. Tra le informazioni mancanti vi sono quelle semantiche: alcuni asset nella scena potrebbero avere un'importanza critica, che questa sia narrativa, logica o percettiva. Si può pensare all'impatto percettivo che potrebbe causare il caricamento tardivo di una fonte luminosa, in particolar modo se è l'unica in scena.
+
+Si richiede quindi all'utente di fornire una \textbf{lista di eccezioni}: istanze di asset alla quale dovrà essere fornita priorità assoluta. Queste non verranno considerate dalle politiche di ordinamento e verranno associate direttamente con un valore di importanza massima.
+L'ordine di caricamento delle eccezioni è dato dalla loro posizione nella lista, gestibile dall'utente. Le istanze assegnate ad un indice $i$ basso hanno una maggiore priorità. Nell'ordinamento finale, il valore assegnato agli asset d'eccezione sarà il minore possibile codificabile indicato con $\texttt{MAX}$ e, per rispettare l'ordinamento, verrà aggiunto il valore dell'indice di posizione.
+La coppia rappresentante un'istanza d'eccezione $\texttt{instance}$ sarà dunque nella forma $\langle \texttt{instance}, -\texttt{MAX} + i\rangle$.
+
+% Zone di interesse
+% Un'ulteriore informazione semantica che possiamo richiedere all'utente sono dei \textbf{punti di interesse}.
+% Ovvero punti che identificano il centro di una zona di interesse 
+
+% Per trattare lo spostamento della camera si richiede all'utente di fornire punti nella scena che verranno denotati come \emph{di interesse} associati ad un \emph{coefficiente di interesse}. Gli asset che prima venivano valutati solo in funzione della distanza dall'entry point verranno adesso verranno valutati in aggiunta in funzione della distanza da ogni punto di interesse pesato con il relativo coefficiente.
+% quest'ultima parte delle zone di interesse è ancora da implementare, ma in ogni caso non verrebbe utilizzata nella valutazione quantitativa delle politiche
+
+

@@ -1,0 +1,75 @@
+    \chapter{Uno strumento per la valutazione quantitativa}
+    \label{cap:toolvalutazione}
+        %Semplicemente, dovresti dire che, per i tuoi scopi, ti è sufficiente misurare la distanza fra immagini come l'integrale (cioè la somma diviso l'area, cioè la media) 
+    % della distanza fra i pixel, e magari anche come MASSIMO della distanza fra i pixel, anche se il calcolo della distanza fra immagini si può avvalere di metodi più sofisticati.
+    % E aggiungere che, nel fare questo, come "distanza fra i pixel" usi uno spazio percettivo del colore, cioè converti i colori dalla rappresentazione RGB ad una rappresentazione
+    % (Lab) che almeno tenta di correlare la distanza euclidea fra punti con la distanza percettiva.
+    % Basta dire questo.        
+        %intro: 
+        Questo capitolo presenta uno strumento basato su immagini progettato per la valutazione quantitativa della performance di una qualsiasi data strategia di prioritizzazione. Il soggetto della valutazione è la sequenza di \textit{frame} di caricamento della scena che segue un dato ordinamento.
+        
+        Le performance di caricamento sono state limitate per mettere in evidenza il ruolo dell'ordinamento delle istanze, imponendo $d$ APF (Asset per Frame, quanti istanze di asset caricare per ogni frame) e $n$ FPS (\textit{Frame per Second}). La frequenza di frame analizzata è ottenuta tramite un piccolo modulo che acquisisce $n$ screenshot al secondo durante il caricamento della scena.
+
+        \section{Metodo valutativo}
+        La valutazione avviene prelevando l'ultimo frame, rappresentante la vista caricata, e designandolo come \emph{ground truth}, ovvero il frame che vogliamo raggiungere.
+        Si suppone che caricare ulteriori asset dopo l'ultimo frame non cambierebbe la vista.
+        Successivamente si prendono gli screenshot in ordine di tempo e si confrontano con la ground truth. 
+        
+        Si osserva che l'ultimo frame non è necessariamente quello in cui tutte le istanze sono caricate. È più corretto affermare invece che è il frame con tutte le istanze in vista caricate.
+        \\
+        
+        Si definisce il concetto di frame: un frame è una matrice $P\in [{A}^3]^{h \times w}$ dove $A = [0, 255] \subset \mathbb{N}$ e $h\times w$ è la risoluzione dei frame considerati. Gli elementi di $P$ sono triple $P_{i,j} \in {A}^3$ che corrispondono con la combinazione sRGB che identifica il colore rappresentato dal pixel in posizione $i,j$. Sia $F = [{A}^3]^{h\times w}$ , il confronto tra due frame è una funzione $f:  F \times F \to \mathbb{R}^+$. Il confronto utilizzato è la media della distanza euclidea pixel a pixel con la ground truth:
+        $$
+        f(P_t, \texttt{PTruth}) = \frac{1}{wh}\sum_{i=1}^{h}\sum_{j=1}^{w}{||P_{t,i,j}, \texttt{PTruth}_{i,j}||_2}
+        $$
+        % dove la distanza $d$ è espressa come la differenza componente a componente di ogni pixel in valore assoluto:
+        % % notazione con i delta?
+        % $$
+        % d(P1_{i,j}, P2_{i,j}) =  |P1_{i,j,0} - P2_{i,j,0}| + |P1_{i,j,1} - P2_{i,j,1}| + |P1_{i,j,2} - P2_{i,j,2}|
+        % $$
+        
+        % Che, restando nello spazio colorimetrico sRGB, corrisponde alla somma delle differenze delle quantità di rosso, verde e blu necessario per comporre il colore finale.
+
+        \paragraph{Agnosticità dello strumento}
+        Si osserva come non vi sia alcuna dipendenza tra le politiche viste precedentemente e lo strumento proposto, rendendolo utilizzabile in molteplici contesti valutativi nei quali sia necessario comparare un'approssimativa distanza percettiva tra immagini.
+
+        \section{Uniformità percettiva}
+        Lo spazio colorimetrico sRGB porta con sé un problema che mina la bontà dell'approssimazione delle valutazioni: non è percettivamente uniforme. Dati due spostamenti $a$ e $b$ della stessa lunghezza (misurata con la distanza euclidea) partendo dallo stesso punto, non corrispondono sempre alla stessa distanza percettiva. Come si può notare nella Figura \ref{fig:chromaticitydiagram}\footnote{La rappresentazione mostrata del diagramma di cromaticità è solo un'approssimazione limitata dallo spazio colorimetrico in uso dello schermo o utilizzato nella stampa di questo elaborato}, colori (\textbf{hue}) differenti occupano aree di grandezze non omogenee. Il motivo di questa problematica risiede nelle lunghezze d'onda con la quale vengono percepiti i colori: la scala dei verdi viene percepiti da circa \SI{495}{\nano\meter} fino a \SI{560}{\nano\meter}, mentre quella dei i gialli da circa \SI{560}{\nano\meter} fino a \SI{580}{\nano\meter}.
+
+        \begin{figure}
+            \centering
+            \includegraphics[scale=.4]{images/chromaticity-diagram.png}
+            \caption{CIE 1931 diagramma di cromaticità \cite{chromaticitydiagram}}
+            \label{fig:chromaticitydiagram}
+        \end{figure}
+
+        Lo spazio colorimetrico CIE L*a*b*, introdotto nel 1976 dalla Commissione Internazionale per l'Illuminazione \cite[63]{ciecolorimetry}, è stato concepito per essere percettivamente quasi uniforme nell'accezione appena esposta: piccole variazioni nello spazio corrispondono sempre a piccole variazioni percettive e viceversa. In tutte le valutazioni verrà utilizzato l'illuminante standard CIE D65 come punto bianco standard.
+
+                       La differenza (o distanza) percettiva tra due pixel espressi nello spazio colorimetrico CIE L*a*b* è definita da 
+        $$
+            \Delta E = ((\Delta L^*)^2 + (\Delta a^*)^2 + (\Delta b^*)^2)^\frac{1}{2}
+        $$
+
+        \section{Lettura dell'output}
+        L'output fornito da queste analisi è una sequenza di differenze percettive tra ogni frame in ordine cronologico dalla ground truth. Per una migliore visualizzazione si decide di esporre questi dati su un grafico a linea spezzata avente sulle ordinate la distanza percettiva e sulle ascisse il tempo, espresso dal numero di frame corrispondente. Un punto sul grafico corrisponderà alla differenza percettiva tra frame a tempo $t$ e la ground truth. Nell'output sarà presente anche l'area sottesa alla curva rappresentata
+
+        $$
+            \int_{t=1}^T{f(P_t, \texttt{PTruth}) \, dt} = \sum_{t=1}^T{f(P_t, \texttt{PTruth})}    
+        $$
+
+        L'obiettivo è quello di minimizzare il valore sotteso alla curva.
+
+        \section{Ambiente di sviluppo e moduli}
+        Lo strumento è stato sviluppato con Python 3.9.13, un ambiente completamente agnostico da quello di sviluppo delle politiche di priorità. Il modulo principale utilizzato è OpenCV, una vasta libreria per la manipolazione delle immagini e la conversione degli spazi colorimetrici. Sono stati inoltre utilizzati Numpy 1.21.2 e Pandas 1.3.3 per la gestione delle strutture dati e Matplotlib 3.4.3 per la produzione dei grafici.
+        \\
+        L'applicativo non presenta alcuna interfaccia grafica, opera completamente da linea di comando. Prima di invocarlo bisogna preparare l'input. Una directory deve contenere tutti i frame da analizzare, il nome di ognuno di essi deve essere uno scalare che rappresenta l'ordine del frame. Questa nomenclatura, benché rigida, si presta come la più semplice e scalabile. L'utilizzo della data di creazione dell'immagine avrebbe causato conflitti vista la velocità di acquisizione, minando la correttezza dell'ordinamento temporale.
+        Da linea di comando accetta due argomenti: 
+            \renewcommand\labelitemi{\tiny$\bullet$}
+            \begin{itemize}
+                \item \verb|-ld|: lista delle directory da fornire in input
+                \item \verb|-o|: directory di output dei grafici
+            \end{itemize}
+        Attualmente lo strumento supporta in input solo file \verb|png| ma è facilmente estendibile ad altri formati. I grafici forniti in output sono in formato \verb|png| con risoluzione 1000x600.
+        \\
+
+        Una versione dello strumento è stata resa pubblicamente disponibile all'indirizzo \url{https://github.com/andreaborghesi00/perception-evaluator}.

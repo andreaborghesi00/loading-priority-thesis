@@ -1,0 +1,177 @@
+% Ma se spostassi tutti i grafici in un appendice apposita?
+
+\chapter{Risultati ed esperimenti}
+    % In questo capitolo, mostriamo il risultato dell'applicazione della strategia messa a punto a dataset reali o fittizi.
+
+    % cosa si andrà a vedere nel capitolo
+    Con l'utilizzo dello strumento proposto nel precedente capitolo è possibile ottenere delle valutazioni sulle politiche esposte nel Capitolo \ref{cap:strategie}. 
+
+    \section{Testbed utilizzati}
+    % testbed utilizzati (uno artificiale e uno realistico)
+    % nella artificiale abbiamo i cubozzi che sono esattamente dentro le aabb mentre nella reale sono approssimazioni -> still pretty good per le ombre, funziona comunque molto bene (non abbiamo mai il caso: carica oggetto -> carica ombreggiatore dell'oggetto già presente perché le aabb sono un'approssimazione per eccesso e non per difetto)
+    Le valutazioni avverranno su due scene, una fittizia che simula un caso ideale e una reale.
+    
+    La scena fittizia (Figura \ref{fig:scenafittizia}) presenta un'insieme di cubi con una fonte luminosa con la camera posizionata grossolanamente al centro. Il cubo, nel contesto valutativo considerato, è la mesh ideale poiché, in alcune strategie per la valutazione della priorità (vedi Capitoli \ref{cap:ombreportate}, \ref{cap:sphere-distanza}, \ref{cap:sphere-dimensione}) verranno considerate le AABB delle mesh che, per parallelepipedi rettangoli, coincide perfettamente con la mesh stessa.
+    
+    La scena contiene circa 2000 istanze, l'inquadratura renderizza circa $2,5 \cdot 10^4$ triangoli e non sono associate tessiture alle mesh renderizzate.
+    Il posizionamento delle istanze dei cubi è parzialmente arbitraria; l'obiettivo principale è quello di emulare la presenza di molte istanze e di osservare, con una seconda camera, il corretto funzionamento della strategia in uso.
+    È stato intenzionale il posizionamento di gruppi di cubi e della camera, così da avere la certezza che questa inquadrasse delle ombre portate. Infine, in distanza è stato aggiunto un parallelepipedo di grandi dimensioni, per assicurarsi il corretto funzionamento delle valutazioni per dimensione.
+
+    \begin{figure}[htbp!]
+        \centering
+        \includegraphics[scale=.2]{images/scena_fittizia.png}
+        \caption{Scena fittizia, fonte luminosa $30^\circ$}
+        \label{fig:scenafittizia}
+
+        \centering
+        \includegraphics[scale=.2]{images/sRGB-ground-truth.png}
+        \caption{Scena realistica, fonte luminosa $30^\circ$}
+        \label{fig:scenarealistica}
+    \end{figure}
+    
+    La scena reale (\ref{fig:scenarealistica}), di un gioco non annunciato - Copyright MixedBag srl -, è di un paese sul mare. Questa scena presenta diversi ostacoli nella quale le prime politiche esposte (Capitoli \ref{cap:closest-first} \ref{cap:closest-first-on-camera}, \ref{cap:sphere-distanza}) saranno più svantaggiate mentre quelle più raffinate incontreranno meno difficoltà. Si osserva che le politiche che fruiscono di raggi soffriranno la presenza di mesh convesse e cave le cui approssimazioni ad AABB saranno molto grezze, nonostante ciò tale approssimazione sarà comunque migliore di altre strategie.
+    
+    Per eseguire correttamente le valutazioni sulla scena realistica non dovranno essere presenti componenti in movimento come vegetazione soggetta al vento o acqua che scorre.
+    La scena presenta al suo interno circa 4000 istanze di asset con una geometria complessa con tessiture associate. L'inquadratura utilizzata renderizza circa $2.4 \cdot 10^6$ triangoli, un notevole incremento di complessità dalla scena fittizia. La posizione della camera è centrale alla cittadina, alle sue spalle sono presenti ulteriori istanze di dimensione variabile.
+
+
+
+    % disclaimer sulla simulazione in unity perché limitazioni con rimando al capitolo delle limitazioni e lavoro futuro
+
+    \section{Valutazioni delle politiche}
+    % valutazioni: ipotesi su fps, aps, ANGOLO DELLA luce, tempo di esecuzione, asset prioritari presi in considerazione (luce), quantità di luci nella scena, ignoriamo le zone di interesse
+    Nelle valutazioni che seguiranno si terrà conto che: 
+    \begin{itemize}
+        \item si valuterà la differenza per ogni frame dal frame finale (\textit{ground truth})
+        \item verranno caricati 16 istanze di asset per frame (16 APF) a 60 FPS
+        \item la fonte luminosa è una fonte diretta e angolata a $30^\circ$ quando non specificato
+        \item la camera e la fonte luminosa saranno sempre considerati asset prioritari
+    \end{itemize}
+    Le inquadrature di test usate nelle due scene sono mostrate nelle Figure \ref{fig:scenafittizia} e \ref{fig:scenarealistica}.
+        \subsection{Closest-First}
+            % closest first evidenziando l'uniformità con l'angolo della luce
+            Come è possibile osservare in Figura \ref{fig:eval-cf}, questa politica mostra una tendenza sub-lineare nella scena fittizia mentre un comportamento molto peggiore per la scena realistica. Questo può essere motivato dalla presenza di più istanze vicine non in vista rispetto alla scena fittizia. 
+            I salti presenti nella valutazione della scena realistica sono causati dal caricamento delle istanze di grandi dimensioni. Data la considerevole sezione di vista occupata, comportano un grande avvicinamento verso la ground-truth e un'importante amplificazione dell'area sotto la curva fino a quando non vengono caricate.
+
+            Attraverso ulteriori esperimenti si è notato che il comportamento di questa politica non risente di notevoli cambiamenti alterando l'angolo di provenienza della luce.
+
+            \begin{figure}[htbp!]
+                \centering
+                \input{images/valutazioni/28-04-23 02-45-27 ClosestFirst 2193.58-13124.99.pgf}%
+                \caption{Valutazione Closest-First sulla scena fittizia}
+                \label{fig:eval-cf}
+
+                \input{images/valutazioni/28-04-23 02-47-01 ClosestFirstInView 914.35-7661.43.pgf}
+                \caption{Valutazione Closest-First on Camera}
+                \label{fig:eval-cfv}
+            \end{figure}
+        
+        \subsection{Closest-First on Camera}
+            La seguente politica, fornendo priorità alle istanze di asset interne al view-frustum, elimina il problema che si presentava nella strategia analizzata al paragrafo precedente: la presenza di un grande numero di istanze di asset non in vista. Questa raffinatura presenta un miglioramento del 58.3\% per la scena fittizia e del 41.6\% per la scena realistica.
+
+        \newpage            
+        \subsection{Sphere Tracing}
+            % sphere tracing: % evidenzia le differenze con l'angolo della luce
+            \subsubsection{Valutazione della distanza}
+            Considerare prioritari le istanze che compongono la vista, per quanto ragionevole, non porta apparenti miglioramenti nella scena realistica (figura \ref{fig:eval-stdist}). Questo comportamento può essere motivato dal fatto che l'inquadratura considerata è quasi priva di istanze occluse più vicine di altre istanze non occluse, eliminando il beneficio principale di questa politica. Nella scena fittizia invece, grazie alla presenza di istanze vicine e completamente occluse, si nota un miglioramento, benché leggero, del 6.1\%.
+
+            È opportuno notare che i risultati di questa strategia si alterano al variare dell'angolo della luce. Variando l'angolo da $30^\circ$ a $5^\circ$ si nota una variazione del 5.6\% per la scena fittizia e del 7.1\% per la scena realistica rispetto alle valutazioni effettuate con la fonte luminosa posta a $30^\circ$. Questa politica fornisce priorità agli oggetti in vista, non considerando l'impatto percettivo delle ombre portate causate da istanze di asset non in vista. Questo implica che aumentare o diminuire la quantità di ombre portate generate da asset non in vista, causato da una modifica dell'angolo di provenienza della luce, implica una diversa efficacia della strategia.
+            Si osserva che il caso ideale è quello in cui la fonte luminosa splenda verso la camera, cosicché gli asset generatori di ombre portate siano principalmente quelli in vista. 
+
+            \begin{figure}[htb!]
+                \centering
+                \input{images/valutazioni/28-04-23 02-56-09 SphereTracing 858.59-7661.42.pgf}
+                \caption{Valutazione Sphere Tracing valutato per la distanza}
+                \label{fig:eval-stdist}
+            \end{figure}
+
+            \newpage
+            \subsubsection{Valutazione della dimensione}
+            Valutare le istanze in vista per dimensione porta un notevole guadagno nella scena realistica (Figura \ref{fig:eval-stdim}): del 28.3\% rispetto alla valutazione per distanza (e alla valutazione Closest-First on Camera) e del 58.38\% da Closest-First. Questo miglioramento era prevedibile dato che la scena realistica è composta da elementi di grandi dimensioni che occupano un'importante sezione della vista anche se posti distanti dalla camera. 
+            
+            È presente un guadagno anche nella scena fittizia ma, dato che le istanze di asset che la popolano presentano una maggiore uniformità in dimensione, fatte poche eccezioni, il guadagno è minore, del 5.7\% rispetto alla valutazione per distanza, del 11.5\% dalla strategia Closest-First on camera e del 63.12\% da Closest-First.
+            %discussione riguardo gli angoli della luce
+                % \begin{figure}[htb!]
+                %     \centering
+                %     \includegraphics[scale=.5]{images/valutazioni/fittizia/28-04-23 04-20-50 SphereTracingSizePriority 809.5422230853329.png}
+                %     \caption{Valutazione Sphere Tracing valutato per la dimensione sulla scena fittizia}
+                %     \label{fig:eval-stdim-fit}
+                % \end{figure}
+    
+                % \begin{figure}[htb!]
+                %     \centering
+                %     \includegraphics[scale=.5]{images/valutazioni/realistica/28-04-23 05-01-17 SphereTracingSizePriority 5462.929151987784.png}
+                %     \caption{Valutazione Sphere Tracing valutato per la dimensione sulla scena realistica}
+                %     \label{fig:eval-stdim-re}
+                % \end{figure}
+            % \begin{figure}[htbp]
+            %     \centering
+            %     \includegraphics[width=\textwidth]{images/sequences/sequence-stdim-re.png}
+            %     \par
+            %     \vspace{15pt}
+            %     \centering
+            %     \includegraphics[width=\textwidth]{images/sequences/sequence-stdim-fit.png}
+            %     \caption{Sequenza di carimento di Sphere Tracing valutato per la dimensione}
+            %     \label{fig:seq-stdim}
+            % \end{figure}
+                
+            \begin{figure}[htb!]
+                \centering
+                \input{images/valutazioni/28-04-23 05-01-17 SphereTracingSizePriority 809.54-5462.93.pgf}
+                \caption{Valutazione Sphere Tracing valutato per la dimensione}
+                \label{fig:eval-stdim}
+            \end{figure}             
+
+        \newpage
+        \subsection{Ray Tracing - Ombre portate}
+        Combinare la determinazione delle istanze in vista e la previsione delle ombre portate porta un forte incremento di performance in entrambe le scene. Nella scena realistica si percepisce un miglioramento del 47\% rispetto alla strategia di valutazione per dimensione con lo Sphere Tracing, e del 62.6\% e 78.2\% per le strategie Closest-First on Camera e Closest-First rispettivamente. 
+        
+        I risultati sono promettenti anche per la scena fittizia data la presenza di un maggior numero di ombre portate provenienti da molte istanze non inquadrate. Si osserva un miglioramento del 75.9\% dalla valutazione per dimensione con lo Sphere Tracing e del 77.3\% per la valutazione per la distanza sempre dello stesso, del 78.6\% per il Closest-First on Camera e del 91.1\% per il Closest-First. È importante sottolineare che queste prestazioni sono mantenute indipendentemente dall'angolo di provenienza della luce a differenza delle politiche valutate nei paragrafi precedenti. Il parametro $\alpha$ è stato impostato ad $1$ per le valutazioni. Attraverso esperimenti empirici è il valore che ha portato i migliori risultati.
+            % \begin{figure}[htb!]
+            %     \centering
+            %     % \includegraphics[scale=.55]{images/valutazioni/fittizia/28-04-23 03-31-24 RayTracing 195.07658568058338.png}
+            %     \input{images/valutazioni/RayTracing combined.pgf}
+            %     \caption{Valutazione Ray Tracing - ombre portate sulla scena fittizia}
+            %     \label{fig:eval-raytracing-fit}
+            % \end{figure}
+
+            % \begin{figure}[htb!]
+            %     \centering
+            %     \includegraphics[scale=.55]{images/valutazioni/realistica/28-04-23 03-32-23 RayTracing 2860.4245073910374.png}
+            %     \caption{Valutazione Ray tracing - ombre portate sulla scena realistica}
+            %     \label{fig:eval-raytracing-re}
+            % \end{figure}
+
+            % \begin{figure}[htbp]
+            %     \centering
+            %     \includegraphics[width=\textwidth]{images/sequences/sequence-rt-re.png}
+            %     \par
+            %     \vspace{15pt}
+            %     \centering
+            %     \includegraphics[width=\textwidth]{images/sequences/sequence-rt-fit.png}
+            %     \caption{Sequenza di caricamento di Ray Tracing}
+            %     \label{fig:seq-rt}
+            % \end{figure}
+
+            \begin{figure}[htb!]
+                \centering
+                \input{images/valutazioni/28-04-23 03-32-23 RayTracing 195.08-2860.42.pgf}
+                \caption{Valutazione Ray Tracing - Ombre portate}
+                \label{fig:eval-rt}
+            \end{figure}         
+
+
+    \begin{sidewaysfigure}
+        \centering
+        \includegraphics[width=\textheight,height=.70793\textwidth]{images/valutazioni/eval-fittizia-cluster.png}
+        \caption{Sequenze di caricamento della scena fittizia utilizzando le strategie proposte}
+        \label{fig:fittizia-cluster}
+    \end{sidewaysfigure}
+
+    \begin{sidewaysfigure}
+        \centering
+        \includegraphics[width=\textheight,height=.71123834149044233077846523224674\textwidth]{images/valutazioni/eval-realistica-cluster.png}
+        \caption{Sequenze di caricamento della scena realistica utilizzando le strategie proposte}
+        \label{fig:realistica-cluster}
+    \end{sidewaysfigure}
+    % le valutazioni messe a confronto: ray tracing wins

@@ -1,0 +1,60 @@
+    \chapter{Conclusioni}    
+        % Breve. Alcune cose che si possono dire sono:
+        
+        % Come è valutata, in totale, la stategia dallo strumento di assessment? 
+        
+        % E' utilizzata la strategia di prioritizzazione dal gioco per il qualeera stata pensata? perché
+
+        Delle strategie proposte \textit{Ray Tracing - Ombre portate} si pone come la migliore valutata dallo strumento preposto e la più consistente sotto l'aspetto dell'angolo di provenienza della luce ma, la versione implementata, segue una singola fonte luminosa. Nonostante ciò, questa metodologia può essere estesa a molteplici fonti pagando un costo di tempo di calcolo che può essere trascurato data l'assenza di necessità di essere computato in tempi brevi.
+        
+        Lo strumento valutativo propone delle valutazioni ragionevoli e ben supportate, rendendolo utilizzabile anche in diversi contesti essendo indipendente dalle strategie di prioritizzazione.
+
+        Delle strategie proposte si propone un confronto nelle figure \ref{fig:conclusioni-fittizia} e \ref{fig:conclusioni-realistica} le quali mostrano la totale differenza percettiva di ogni strategia per la scena fittizia e quella realistica, mettendo alla luce i miglioramenti portati dalle intuizioni del capitolo \ref{cap:strategie}.
+
+        % Le strategie proposte possono essere implementate in un vero contesto di produzione per 
+        \begin{figure}
+                \centering
+                \input{images/valutazioni/fittizia.pgf}
+                \caption{Valutazioni messe a confronto: scena fittizia}
+                \label{fig:conclusioni-fittizia}
+
+                \input{images/valutazioni/realistica.pgf}
+                \caption{Valutazioni messe a confronto: scena realistica}
+                \label{fig:conclusioni-realistica}
+        \end{figure}
+
+        Sono già esistenti soluzioni hardware per velocizzare i tempi di trasferimento dei dati da memoria di massa \cite{thompson_newburn_2019}. Queste evidenziano la necessità di accelerare i tempi di caricamento, in questo contesto, delle scene. Il lavoro presentato in questa tesi mostra quindi come la scelta della prioritizzazione abbia un importante impatto nel conseguimento di questi risultati a livello software, che per natura, hanno un costo implementativo molto inferiore.
+
+\newpage
+\section{Limitazioni}
+\label{cap:limitazioni&lavorofuturo}
+
+\paragraph*{Testing sul campo}
+    L'implementazione non è ancora stata utilizzata dall'azienda ospitante a causa dei limiti posti dal motore grafico in utilizzo: Unity \cite{unity}, il quale non permette di gestire la memoria liberamente se non ad un livello macroscopico, garantendo una gestione di pacchetti di asset \cite{addressables, asset-bundles}. Di conseguenza per eseguire comunque gli esperimenti è stato simulato il comportamento di caricamento sempre sullo stesso motore grafico a soli scopi valutativi.
+    Nonostante queste limitazioni è opportuno sottolineare che Unity fornisce strumenti per evitare sprechi di memoria \cite{farclipplaneunitydoc, occlusionunitydoc}.
+
+
+\section{Lavoro futuro}
+
+Il lavoro di questa tesi può essere il punto di partenza per un numero di sviluppi futuri.
+
+\paragraph*{Parallelismo.}
+    Nell'attuale implementazione, tutte le strategie sono eseguite in modo sequenziale su CPU single-threaded, quando invece molte di queste, specialmente quelle che fanno uso delle tecniche di Ray Tracing e Ray Marching, potrebbero avvantaggiarsi di una implementazione parallelizzata su GPU. Questa limitazione non ha previene l'esecuzione degli esperimenti ma, in contesto lavorativo, si vorrebbe che questi ordinamenti, benché calcolati offline, avvengano nel minor tempo possibile ma senza rinunciare alla precisione dell'ordinamento.
+
+\paragraph*{Testing ulteriore.}
+    Sarebbe inoltre interessante provare a valutare ulteriori scene, prese da contesti diversi, per verificare o contraddire l'efficacia delle strategie nei diversi contesti. Ad esempio, nel contesto videoludico sarebbe opportuno effettuare valutazioni di scene provenienti da generi differenti. 
+
+\paragraph*{User evaluation.} La parte valutativa di questo progetto si basa su un semplice confronto pixel-a-pixel di immagini (seppur valutata in uno spazio colorimetrico basato su considerazioni percettive). Questo rappresenta una cruda approssimazione del dato che si vuole misurare. Uno user study con utenti reali si rende necessario per determinare l'accuratezza di questa valutazione.
+
+
+\paragraph*{Estensione ad altri tipi di asset.}
+    Il concetto di caricamento di un'istanza, utilizzato in questa tesi, ha sempre supposto che venissero caricati anche altri asset utilizzati da questa. Quando è necessario caricare l'istanza di un edificio vengono caricati: mesh 3D, tessiture, materiali, animazioni, generici script ecc. Si potrebbe ideare invece una strategia che separa questo elemento atomico in tutti gli asset che lo compongono. Aggiungendo la necessità di introdurre ulteriori politiche per decidere come ordinare questi specifici tipi di asset (per esempio in ordine di dimensione su disco). Ad esempio, una strategia potrebbe anteporre il caricamento della sola istanza di una mesh 3D al caricamento delle tessiture di colore o mappa delle normali associate, risultando in un diverso compromesso fra qualità della scena parziale e tempo di caricamento. Similmente, una mesh animata che sia parte della scena potrebbe essere caricata in rest pose, e mostrata senza la corrispondente animazione. Lo strumento di valutazione (introdotto nel Capitolo \ref{cap:toolvalutazione}) è già in grado di gestire queste estensioni, perché si basa su una misura dei rendering risultanti. 
+
+\paragraph*{Estensione ad asset multirisoluzione.}
+   Infine, questo lavoro può essere esteso nella direzione di valutare strategie che prescrivono di caricare livelli di dettaglio di risoluzione inferiore a quella che verrebbe normalmente utilizzata, per fornire scene parziali con un vantaggioso rapporto fra tempo di caricamento e qualità visuale. Esempi di questo tipo di asset includono: \begin{itemize}
+       \item piramidi di livello di dettaglio di mesh; 
+       \item livelli di MIP-map per tessiture;
+       \item micro-mesh, una struttura di recente introduzione per la rappresentazione compatta di mesh ad alta risoluzione\cite{micromeshConstruction}, per le quali è possibile limitare il caricamento alla mesh-base tralasciando inizialmente le strutture di displacement scalare associate.
+   \end{itemize} 
+    
+
