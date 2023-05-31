@@ -339,7 +339,7 @@ I restanti asset vengono come descritto nella politica precedente.
 \paragraph{Rationale} Le istanze sono contenute in AABB, una struttura approssimante molto semplice di cui sono note le soluzioni analitiche per calcolare le intersezioni. È possibile dunque abbandonare le approssimazioni fornite dallo Sphere Tracing e utilizzare il Ray Tracing per trovare le intersezioni esatte.
 Il risultato del rendering non è influenzato soltanto dalle istanze presenti nel view frustum, ma anche da quelle che ne influenzano l'illuminazione. Una fonte luminosa non inquadrata, per esempio, potrebbe generare delle ombre portate o dei riflessi che verranno poi rappresentati nella vista finale.
 Questa strategia vuole concentrarsi sulle ombre portate, e di come queste possano causare causare una forte differenza percettiva, sebbene in maniera indiretta, anche da asset non inquadrati. Uno scenario tipico di questa occorrenza è quello delle stanze chiuse, che presentano soffitti e pareti; nonostante una parete non possa essere in vista, l'ombra che genera sugli asset in vista è di grande impatto percettivo. Si vuole dunque tenere conto degli asset generatori di ombre portate nella vista.
-\paragraph{Ipotesi} Nell'implementazione fornita si assume, per semplicità, la presenza di una singola fonte luminosa nella scena, tuttavia, il metodo è estendibile a molteplici fonti.
+\paragraph{Ipotesi} Nell'implementazione fornita si assume la presenza di una singola fonte luminosa nella scena, tuttavia, il metodo è estendibile a molteplici fonti.
 \\
 
 La struttura è analoga all'ultima strategia, nella quale però si sfrutta il Ray Tracing per ottenere delle soluzioni analitiche per le intersezioni.
@@ -404,10 +404,10 @@ Per l'implementazione di questa politica si è fatto uso della libreria di Unity
                 }
             }
         }
-        $\oe \gets \of \setminus \occ$\;
+        $\oe \gets \of \setminus (\of \cap \occ)$\;
         $\oe \gets $Distance$(\oe, \ep)$\;
         $\o \gets \max(\oe$.value$)$\;
-        $\oc \gets \aa - \of$\;
+        $\oc \gets \aa \setminus \of$\;
         $\oc \gets $DistanceOffset$(\occ, \ep, \o)$\;
         
         \Return{$\occ \; \cup \; \oe \; \cup \; \oc$}\;
