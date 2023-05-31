@@ -1,0 +1,54 @@
+\documentclass[a4paper, twoside]{thesis}
+\usepackage{StreamingPriority}
+\pagestyle{headings}
+\begin{document}
+
+    \title{
+        {Caricamento di scene 3D complesse: strategie di prioritizzazione degli asset e loro valutazione quantitativa basata su immagini}
+        
+        \matr{952944}
+        \author{Andrea Borghesi}
+        \date{12/02/2023}
+    }
+    \maketitle
+
+    \section{Contesto}
+    Nel contesto del rendering di scene 3D, di elevata complessità, i limiti imposti dalla memoria sono sempre un ostacolo da affrontare con cautela. Il passaggio dei dati dalla memoria di massa o da remoto fino alla VRAM è un problema recentemente affrontato a livello hardware \cite{thompson_newburn_2019}. Questa tesi si pone l'obiettivo di proporre strategie per la gestione dell'ordine di caricamento delle istanze interne ad una scena 3D, affiancando le soluzioni hardware un'ottimizzazione software. Si pone particolare attenzione nel rendere l'operazione di caricamento il meno percettibile possibile dall'utente. Questa necessità nasce principalmente nel mondo videoludico, dove è uso comune strutturare un mondo virtuale in sotto-scene di cui, con gli standard odierni, si richiede che il passaggio tra queste sia impercettibile. Per fare ciò, le strategie tratteranno molto da vicino la gestione delle istanze che compongono la vista finale, con l'obiettivo di comporla in tempo utile comprensiva di asset critici al funzionamento dell'applicativo. La misura dell'efficacia di queste politiche viene stimata con uno strumento basato su immagini che approssima la distanza percettiva tra le due. % magari anche un accenno al concetto di scena e istanza
+
+    \section{Strategie}
+    Le strategie di prioritizzazione prendono in input due argomenti: la scena, uno spazio contenente un insieme di istanze di asset; e un \textit{entry-point}, il punto di entrata nella scena. Ogni istanza è fornita di una trasformazione spaziale per poterle collocare all'interno dello spazio. L'output della strategia è un insieme di coppie $\langle \texttt{istanza}, \texttt{priorità} \rangle$ dove il valore di priorità è rappresentato da uno scalare. La priorità è maggiore per valori scalari bassi. Di seguito vengono descritte brevemente le strategie implementate:
+    
+    \paragraph{Closest-First.} Assegna a ogni istanza un valore di priorità pari alla loro distanza euclidea dall'entry-point.
+
+    \paragraph{Closest-First on View.} L'insieme delle istanze viene partizionato in due sottoinsiemi $A$ e $O$. $A$ contiene tutte le istanze che intersecano il \textit{view frustum} della camera, mentre $O$ contiene le istanze rimanenti. La valutazione avviene prima sugli elementi di $A$, assegnando ad ognuno un valore di importanza pari alla loro distanza dall'entry-point. Gli elementi di $O$ assumono anch'essi un valore di importanza pari alla loro distanza dall'entry-point, ma in aggiunta viene sommato a loro anche la valutazione massima tra gli elementi di $A$. Questo implica che, caricando le istanze in ordine di priorità, prima verranno caricate le istanze dell'insieme $A$ e poi le restanti.
+    Questa strategia, differentemente da quella precedentemente descritta, fornisce maggiore priorità ad un sottoinsieme più piccolo che contiene tutte le istanze che compongono la vista.
+
+    \paragraph{Sphere Tracing - Valutazione della distanza.} Si considera l'insieme $A$, contenente tutte le istanze intersecanti il \textit{view frustum}, partizionato in due sottoinsiemi $D$ ed $E$. Gli elementi di $D$ sono tutte quelle istanze che non sono completamente occluse da altre istanze, contrariamente $E$ contiene tutte le istanze completamente occluse. Tutte le valutazioni effettuate sugli elementi di tutti gli insiemi saranno pari alla loro distanza dall'entry point maggiorato di un valore che varierà dall'insieme di appartenenza. Si valutano prima le istanze contenute in $D$, successivamente gli elementi di $E$ maggiorando la loro valutazione con la massima ottenuta in $D$ e infine i restanti $A^c$ maggiorando anche queste valutazioni con la massima ottenuta in $A$.
+    Gli elementi dell'insieme $D$ sono ottenuti applicando la tecnica di rendering Sphere Tracing \cite{hart1996sphere}. Ogni istanza è approssimata alla sua AABB (\textit{Axis Aligned Bounding Box}), di conseguenza l'efficacia della strategia dipende da quanto la AABB è una buona approssimazione della mesh considerata. È opportuno inoltre sottolineare che la tecnica di Sphere Tracing non trova le esatte intersezioni con la superficie, ma si avvicina fino ad una distanza $\epsilon$ arbitrariamente piccola dalla mesh. Questo permette di affermare che l'efficacia della strategia dipende anche da $\epsilon$.
+      
+    \paragraph{Sphere Tracing - Valutazione della dimensione.} Questa strategia è una variante di quella precedentemente descritta e consiste nel valutare gli elementi dell'insieme $D$ differentemente. La tecnica di Sphere Tracing lancia un raggio per ogni pixel, percorrendoli iterativamente fino a raggiungere una distanza minore o uguale a $\epsilon$ da una superficie o, dopo aver effettuato un numero massimo di iterazioni. Con questa tecnica una mesh può essere colpita da più di un raggio. Si decide dunque di assegnare un valore di importanza pari al numero di raggi che ha colpito la mesh legata all'istanza. Si ricorda che questo valore è un approssimazione dato che le mesh sono approssimate con delle AABB. Il resto della strategia prosegue come la precedente.
+    
+    \paragraph{Ray Tracing - Ombre portate.} Si osserva che il risultato del rendering è influenzato anche da istanze di asset non inquadrate, come fonti luminose e istanze che proiettano ombre nella vista. Si può inoltre osservare che le AABB con le quali le mesh vengono approssimate sono poliedri la cui soluzione analitica per le intersezioni è semplice e nota. Con queste due osservazioni si vuole dunque migliorare l'efficacia della politica descritta nel paragrafo precedente.
+    
+    Gli elementi dell'insieme $D$ si ottengono utilizzando la tecnica di rendering Ray Tracing, ottenendo gli esatti punti di intersezione con le AABB delle mesh delle istanze, e non una loro approssimazione. Il valore di importanza assegnato agli elementi di $D$ coincide con il numero di raggi che intersecano la mesh dell'istanza. Dopo aver trovato il punto di intersezione, viene lanciato un ulteriore raggio, detto \textit{Shadow ray}, dal punto di intersezione appena calcolato in direzione della fonte luminosa. Se lo \textit{Shadow ray} interseca una AABB allora l'istanza associata viene aggiunta all'insieme $D$ se non è ancora contenuta, altrimenti il suo valore di priorità viene diminuito di un valore arbitrario $\alpha$. Con questa tecnica $D \not\subseteq A$ e dunque $D$ ed $E$ non formano più una partizione di $A$. Gli elementi di $E$ sono adesso definiti come $E = A \setminus (A \cap D)$, e per comodità si definisce $A^\prime = D \cup E$, dunque $D$ ed $E$ formano una partizione di $A^\prime$. È adesso possibile proseguire con la valutazione come nella politica precedente.
+    \\
+    
+    Dato che l'obiettivo non è solo quello di generare la vista finale nel minor tempo possibile ma di caricare un sottoinsieme critico per il funzionamento dell'applicativo, è stato reso possibile dichiarare una lista di eccezioni. Questa lista contiene le istanze necessarie per il corretto funzionamento software dichiarate dall'utente. Ad esse verrà assegnato un valore di priorità massimo che è pari al minimo valore codificabile. L'ordinamento applicato alla lista di eccezioni coincide con l'indice assegnato all'istanza nella lista, minore è il valore dell'indice e maggiore sarà la priorità tra le eccezioni.
+    
+    \section{Strumento valutativo basato su immagini}
+    Questo lavoro di tesi propone anche uno strumento valutativo basato su immagini progettato per valutare empiricamente l'efficacia di un qualsiasi strategia di priorità di caricamento, comprese quelle descritte nei paragrafi precedenti. Questo strumento prende in input una sequenza di immagini, ciascuna rappresentante un rendering ottenuto ad uno stadio intermedio di caricamento della scena. La valutazione avviene prelevando l'ultima immagine della sequenza (che rappresenta la vista caricata per intero), e designandola come \emph{ground truth}, ovvero il frame che si vuole raggiungere. Si suppone che caricare ulteriori asset dopo l'ultimo frame non cambierebbe la vista. Successivamente si prendono le immagini in ordine di tempo e si confrontano con la ground truth. 
+    La distanza tra due frame viene definita come la distanza euclidea pixel-a-pixel, dove il \textit{pixel} è una tripla di valori che descrivono il colore finale da esso esibito. Lo spazio colorimetrico più utilizzato per la rappresentazione del colore è sRGB. Questo però non è percettivamente uniforme ovvero, per piccoli spostamenti (considerati con la distanza euclidea) la differenza percettiva non è sempre la stessa. In questo contesto valutativo è dunque più adatto l'utilizzo dello spazio colorimetrico CIE L*a*b* \cite{ciecolorimetry}, uno spazio colorimetrico basato su considerazioni percettive.
+    % Possiamo dunque definire la valutazione come
+    % \begin{gather*}
+    %     f(\texttt{Frame}_i, \texttt{PTruth}) = \frac{1}{wh}\sum_{i=1}^{h}\sum_{j=1}^{w}{\Delta E} \\
+    %     \Delta E = ((\Delta L^*)^2 + (\Delta a^*)^2 + (\Delta b^*)^2)^\frac{1}{2}
+    % \end{gather*}
+    
+    Si vuole sottolineare come questo metodo per stimare la distanza percettiva sia approssimativo, esistono altri metodi più raffinati per stimare la similarità tra due immagini. Nonostante ciò si osserva come questa approssimazione è sufficientemente efficace per il contesto considerato.
+    
+    \section{Risultati ottenuti}
+    Un'ultima fase di questo lavoro è consistita nel misurare l'efficacia delle strategie presentate nella prima parte attraverso la strumento progettato nella seconda. In queste simulazioni sono state utilizzate due scene, una fittizia e una proveniente da un contesto applicativo reale rappresentante una cittadina, presa da un videogioco non ancora annunciato gentilmente concessa da MixedBag srl. Tutte le strategie proposte sono state simulate su entrambe le scene e ogni simulazione è stata valutata con lo strumento precedentemente descritto. Attraverso le valutazioni si osserva che le strategie che rendono l'ordinamento più efficace sono quelle che tengono conto della presenza di ombre portate e della sezione di schermo occupata da ogni istanza.
+    
+    \printbibliography
+
+\end{document}
